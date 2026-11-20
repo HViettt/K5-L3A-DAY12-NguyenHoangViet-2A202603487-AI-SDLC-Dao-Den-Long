@@ -45,3 +45,13 @@ Spec gốc: [docs/spec/prd-0.md](../spec/prd-0.md). Số tuning: [game.contract.
 - Chưa đạt (lý do):
 - AI sai ở đâu / chỉnh harness:
 - Token ước tính:
+
+## 4. Giả định bổ sung khi hiện thực hóa (chỗ contract/luật chưa nói rõ)
+- **Sinh ngẫu nhiên ban đầu khi scenario thay danh sách:** nếu scenario cung cấp `motes`/`shades` thì danh sách ngẫu nhiên ban đầu (30 đom đóm / 2 Bóng Mực) KHÔNG được thêm nữa; sinh định kỳ (3 s / 30 s) vẫn chạy khi `random_*` bật. Danh sách scenario không có id thì đánh M1…/S1… theo thứ tự; id tự sinh tiếp nối số lớn nhất.
+- **Vị trí sinh ngẫu nhiên:** đom đóm: bán kính đều trong [3, 40] m quanh tâm (rng: bán kính trước, góc sau); Bóng Mực: bán kính 40 m (mép đảo), góc ngẫu nhiên. Mỗi lần sinh dùng đúng 1–2 lượt rng theo thứ tự cố định.
+- **Va chạm nhiều Bóng Mực cùng tick:** chỉ 1 lần chạm/tick, xét theo thứ tự danh sách (id tăng dần).
+- **Timer đếm bằng tick nguyên** (invuln/cooldown/stun quy đổi giây → tick nguyên): tránh sai số float, tất định giữa các bước. invuln 2 s bảo vệ đúng 120 tick sau tick bị chạm; cooldown 1 s chặn đúng 60 tick; stun 3 s = 180 tick.
+- **`end.state` khi chạy hết `--ticks` mà chưa thắng/thua:** `playing`.
+- **Đom đóm sinh định kỳ không phát sự kiện** (contract không định nghĩa tên sự kiện cho nó; chỉ `shade_spawned` có sự kiện).
+- **Scenario sai định dạng → mã thoát 2**, gồm: JSON hỏng, sai shape (không phải [x,y,z] số, move ngoài [-1,1], tick không tăng nghiêm ngặt…), `lanterns[].id` ngoài L1…L5, `shades[].id` không khớp `S<number>`. File không đọc được cũng tính mã 2.
+- **Tham số sai giá trị (không phải file)** — ví dụ thiếu `--out`, `--ticks` âm, `--night ≠ 1` → mã 1 + stderr.
