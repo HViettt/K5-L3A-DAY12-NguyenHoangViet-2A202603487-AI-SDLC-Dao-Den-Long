@@ -1,0 +1,3 @@
+#!/bin/sh
+# Chặn commit khi test đỏ. Bật bằng: git config core.hooksPath .githooks
+npm test --silent || { echo "pre-commit: npm test FAILED - commit bi chan"; exit 1; }
