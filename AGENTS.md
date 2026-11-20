@@ -1,12 +1,15 @@
-# AGENTS.md — Đảo Đèn Lồng (Phase 3 · Contract v1.2)
+# AGENTS.md — Đảo Đèn Lồng (Phase 4 · Contract v1.3 · v1.0.0)
 
-Game 3D góc nhìn thứ ba (Three.js, 3 Đêm: Đảo Bến · Đảo Cau · Đảo Chuông) + chế độ headless (Node) theo Test Contract v1.2.
+Game 3D góc nhìn thứ ba (Three.js 0.170.0 offline, 3 Đêm: Đảo Bến · Đảo Cau · Đảo Chuông) + chế độ headless, benchmark và soak test theo Test Contract v1.3.
 
 ## Lệnh
-- Test toàn bộ (unit + scenario + regression Phase 1–2 + Phase 3 v1.2 + benchmark): `npm test`
+- Test toàn bộ (unit + scenario + regression Phase 1–3 + Phase 4 v1.3): `npm test`
 - Headless: `node src/headless/cli.js --seed <int> --night <1|2|3> [--scenario <f>] [--inputs <f>] --ticks <int> --out <f.jsonl>`
-- Chạy game: `npm start` rồi mở http://localhost:8080
-- Lưu bằng chứng thật: `npm run proof -- phase-3`
+- Benchmark 1280×720: `node scripts/bench.js --seed 42 --duration 30 --out bench.json`
+- Soak test 10 Đêm: `node src/headless/soak.js --seed 7 --nights 10 --out soak.json`
+- Chạy game: `npm start` (hoặc `node scripts/serve.js`) → http://localhost:8080
+- Xuất bảng xếp hạng: `node scripts/serve.js --export-leaderboard out.json`
+- Lưu bằng chứng thật: `npm run proof -- phase-4`
 
 ## Kiến trúc (bắt buộc)
 - `src/core/`: logic game THUẦN (không import `three`, không DOM, không `node:fs` để chạy được cả trên trình duyệt lẫn Node; đọc `game.contract.json` bằng `import ... with { type: "json" }`). Mọi ngẫu nhiên đi qua `src/core/rng.js`.

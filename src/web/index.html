@@ -13,50 +13,81 @@
     body.cb { --danger: #FFFFFF; }
     body.cb .badge { border-style: dashed; }
     * { box-sizing: border-box; user-select: none; }
-    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, sans-serif; }
+    /* Ticket-04 mục 4: cỡ chữ UI mặc định 18px; tùy chọn chữ lớn ×1.25 (đơn vị rem) */
+    html { font-size: 18px; }
+    html.big-font { font-size: 22.5px; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 1rem/1.4 system-ui, sans-serif; }
     canvas { display: block; width: 100%; height: 100%; }
+    /* Ticket-04 mục 1: chế độ benchmark — ẩn toàn bộ menu/HUD/sáng tạo */
+    body.bench #hud, body.bench .overlay, body.bench #whisper { display: none !important; }
+    /* Ticket-04 mục 4: giảm chuyển động — tắt nhấp nháy gắt */
+    body.reduce-motion #timer.urgent { animation: none; }
 
     /* HUD */
     #hud { position: fixed; inset: 0; pointer-events: none; display: none; }
     .panel { background: rgba(14,20,48,0.68); border: 1px solid rgba(242,193,78,0.35); border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(4px); }
     #hud-tl { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 6px; }
-    #flames { display: flex; gap: 8px; font-size: 22px; }
+    #flames { display: flex; gap: 8px; font-size: 1.22rem; }
     .flame.off { opacity: 0.22; filter: grayscale(1); }
-    #badges { display: flex; gap: 6px; font-size: 13px; }
+    #badges { display: flex; gap: 6px; font-size: 0.8rem; }
     .badge { padding: 3px 8px; border-radius: 6px; background: rgba(200,16,46,0.85); color: var(--text); border: 1px solid var(--gold); display: none; }
     .badge.wind { background: rgba(143,163,184,0.35); }
 
     #hud-tc { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
-    #timer { font-size: 26px; font-weight: 700; letter-spacing: 1px; color: var(--text); }
+    #timer { font-size: 1.44rem; font-weight: 700; letter-spacing: 1px; color: var(--text); }
     #timer.urgent { color: var(--danger); animation: blink 0.7s infinite; }
-    #night-label { font-size: 12px; color: var(--gold); opacity: 0.9; }
+    #night-label { font-size: 0.72rem; color: var(--gold); opacity: 0.9; }
     @keyframes blink { 50% { opacity: 0.35; } }
 
+    /* Ticket-04 mục 4: thanh phụ đề gọn (dưới đồng hồ) */
+    #subtitle {
+      position: absolute; top: 84px; left: 50%; transform: translateX(-50%);
+      background: rgba(14,20,48,0.85); border: 1px solid var(--lit); color: var(--text);
+      padding: 5px 14px; border-radius: 8px; font-size: 0.94rem; font-weight: 600;
+      display: none; max-width: 72vw; text-align: center;
+    }
+    /* Ticket-04 mục 4: mũi tên chỉ hướng Bóng Mực mới xuất hiện (tím; xanh khi mù màu) */
+    #shade-arrow {
+      position: absolute; display: none; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+      border-radius: 50%; background: rgba(122,60,255,0.25); border: 2px solid #7A3CFF;
+      align-items: center; justify-content: center; font-size: 1rem; color: #b18cff;
+    }
+    body.cb #shade-arrow { background: rgba(0,179,255,0.22); border-color: #00B3FF; color: #7fd4ff; }
+
     #hud-tr { position: absolute; top: 14px; right: 14px; text-align: right; }
-    #lanterns-hud { font-size: 18px; font-weight: 700; color: var(--lit); }
-    #score-hud { font-size: 16px; color: var(--gold); font-weight: 600; }
-    #fps-hud { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+    #lanterns-hud { font-size: 1rem; font-weight: 700; color: var(--lit); }
+    #score-hud { font-size: 0.9rem; color: var(--gold); font-weight: 600; }
+    #fps-hud { font-size: 0.72rem; opacity: 0.7; margin-top: 2px; }
 
     #hud-bc { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
     #prompt-e { background: rgba(14,20,48,0.85); border: 1px solid var(--lit); color: var(--lit); padding: 6px 14px; border-radius: 8px; font-weight: 600; display: none; }
-    #carry-label { font-size: 12px; color: var(--gold); font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+    #carry-label { font-size: 0.75rem; color: var(--gold); font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
     #mote-bar { display: flex; gap: 5px; padding: 7px 10px; }
     .mote-slot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(255,229,138,0.5); background: rgba(255,246,194,0.08); transition: 0.12s; }
     .mote-slot.filled { background: radial-gradient(circle, #FFF6C2 30%, #FFE58A 100%); box-shadow: 0 0 8px #FFE58A; border-color: #FFF6C2; }
 
     #hud-br { position: absolute; bottom: 18px; right: 18px; display: flex; gap: 10px; }
-    .skill-box { width: 64px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 12px; position: relative; }
-    .skill-box .key { font-size: 11px; color: var(--gold); }
-    .skill-box .cd { font-size: 14px; font-weight: 700; color: var(--danger); }
+    .skill-box { width: 64px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 0.75rem; position: relative; }
+    .skill-box .key { font-size: 0.7rem; color: var(--gold); }
+    .skill-box .cd { font-size: 0.83rem; font-weight: 700; color: var(--danger); }
     .skill-box.ready { border-color: var(--gold); }
     .skill-box.ready .cd { color: #7CFF9B; }
 
     #offscreen-arrow {
       position: absolute; display: none; width: 34px; height: 34px; margin: -17px 0 0 -17px;
       border-radius: 50%; background: rgba(255,179,71,0.22); border: 2px solid var(--lit);
-      align-items: center; justify-content: center; font-size: 18px; color: var(--lit);
+      align-items: center; justify-content: center; font-size: 1rem; color: var(--lit);
       box-shadow: 0 0 12px rgba(255,179,71,0.5);
     }
+
+    /* Ticket-04 mục 5: "Sáng tạo của tôi" — lời thì thầm cổ tích khi thắp đèn */
+    #whisper {
+      position: fixed; top: 70px; left: 14px; max-width: 360px;
+      font-style: italic; color: #FFE9B0; background: rgba(14,20,48,0.8);
+      border-left: 3px solid var(--lit); padding: 8px 12px; border-radius: 6px;
+      font-size: 0.89rem; opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 5;
+    }
+    #whisper.show { opacity: 1; }
 
     /* Overlays */
     .overlay {
@@ -75,15 +106,34 @@
     .btns.row { flex-direction: row; justify-content: center; flex-wrap: wrap; }
     button {
       background: linear-gradient(180deg, #FFB347, #E08A1E); color: #120A1A; border: none;
-      border-radius: 8px; padding: 10px 16px; font: 700 15px system-ui, sans-serif; cursor: pointer;
+      border-radius: 8px; padding: 10px 16px; font: 700 0.9rem system-ui, sans-serif; cursor: pointer;
     }
     button:hover { filter: brightness(1.08); }
     button.sec { background: rgba(245,241,230,0.12); color: var(--text); border: 1px solid rgba(242,193,78,0.45); }
     .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; text-align: left; }
     .setting-row input[type=range] { width: 190px; accent-color: var(--gold); }
-    .controls-grid { font-size: 13px; text-align: left; background: rgba(0,0,0,0.22); padding: 10px 12px; border-radius: 8px; margin-top: 12px; line-height: 1.6; }
+    .controls-grid { font-size: 0.8rem; text-align: left; background: rgba(0,0,0,0.22); padding: 10px 12px; border-radius: 8px; margin-top: 12px; line-height: 1.6; }
+    /* Ticket-04 mục 4: đổi phím */
+    #screen-settings .card { max-height: 92vh; overflow-y: auto; }
+    .setting-keys { text-align: left; margin-top: 8px; }
+    #keybinds { max-height: 180px; overflow-y: auto; }
+    .keybind-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 5px 0; font-size: 0.9rem; }
+    .keybind-row button { min-width: 100px; padding: 4px 8px; font-size: 0.85rem; }
+    #keybind-error { color: var(--danger); font-size: 0.85rem; min-height: 1.2em; margin: 6px 0 0; }
+    /* Ticket-04 mục 3: bảng xếp hạng */
+    #lb-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 10px 0; }
+    #lb-table th, #lb-table td { border-bottom: 1px solid rgba(242,193,78,0.25); padding: 5px 6px; text-align: left; }
+    #lb-table th { color: var(--gold); }
+    #lb-table td.num, #lb-table th.num { text-align: right; }
+    #lb-save input {
+      background: rgba(245,241,230,0.1); border: 1px solid var(--gold); color: var(--text);
+      border-radius: 8px; padding: 8px 10px; font: 0.95rem system-ui, sans-serif; width: 210px;
+    }
+    #lb-status { min-height: 1.3em; font-size: 0.9rem; color: #7CFF9B; }
+    #lb-msg { min-height: 1.3em; font-size: 0.9rem; color: var(--danger); }
   </style>
-  <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.170.0/build/three.module.js" } }</script>
+  <!-- Ticket-04 mục 1: nạp Three.js cục bộ (chạy offline, không cần mạng) -->
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
 </head>
 <body>
   <div id="hud">
@@ -98,6 +148,8 @@
       <div id="night-label">Đêm 1 — Đảo Bến</div>
       <div id="timer">04:00</div>
     </div>
+    <div id="subtitle"></div>
+    <div id="shade-arrow">➤</div>
     <div id="hud-tr" class="panel">
       <div id="lanterns-hud">🏮 0 / 5</div>
       <div id="score-hud">Điểm: 0</div>
@@ -118,6 +170,7 @@
     </div>
     <div id="offscreen-arrow">➤</div>
   </div>
+  <div id="whisper"></div>
 
   <div id="screen-menu" class="overlay show">
     <div class="card">
@@ -130,11 +183,26 @@
           <button class="sec" data-night="2">Đêm 2: Đảo Cau</button>
           <button class="sec" data-night="3">Đêm 3: Đảo Chuông</button>
         </div>
+        <button id="btn-leaderboard" class="sec">🏆 Bảng xếp hạng</button>
         <button id="btn-menu-settings" class="sec">⚙ Cài đặt</button>
       </div>
       <div class="controls-grid">
-        <b>Điều khiển:</b> WASD di chuyển · Chuột / Q xoay camera · Space nhảy · Shift / Chuột phải lướt · E nạp đèn · F tỏa sáng (tốn 3 đom đóm) · Esc / P tạm dừng.
+        <b>Điều khiển (đổi được trong Cài đặt):</b> WASD di chuyển · Chuột / Q xoay camera · Space nhảy · Shift / Chuột phải lướt · E nạp/châm dầu đèn · F tỏa sáng (tốn 3 đom đóm) · Esc / P tạm dừng.
       </div>
+    </div>
+  </div>
+
+  <div id="screen-leaderboard" class="overlay">
+    <div class="card">
+      <h2>🏆 Bảng xếp hạng</h2>
+      <table id="lb-table">
+        <thead>
+          <tr><th>#</th><th>Tên</th><th class="num">Điểm</th><th class="num">Đêm thắng</th><th>Thời gian</th></tr>
+        </thead>
+        <tbody id="lb-body"></tbody>
+      </table>
+      <p id="lb-msg"></p>
+      <div class="btns"><button id="btn-lb-close" class="sec">Đóng</button></div>
     </div>
   </div>
 
@@ -174,6 +242,20 @@
         <label for="opt-cb">Bảng màu dễ phân biệt (mù màu)</label>
         <input id="opt-cb" type="checkbox" style="width:20px;height:20px;accent-color:var(--gold)" />
       </div>
+      <div class="setting-row">
+        <label for="opt-motion">Giảm chuyển động (tắt nhấp nháy &amp; vòng chớp)</label>
+        <input id="opt-motion" type="checkbox" style="width:20px;height:20px;accent-color:var(--gold)" />
+      </div>
+      <div class="setting-row">
+        <label for="opt-big">Chữ lớn (×1.25)</label>
+        <input id="opt-big" type="checkbox" style="width:20px;height:20px;accent-color:var(--gold)" />
+      </div>
+      <div class="setting-keys">
+        <b>Đổi phím điều khiển</b>
+        <div id="keybinds"></div>
+        <p id="keybind-error"></p>
+        <button id="btn-keys-reset" class="sec">Khôi phục mặc định</button>
+      </div>
       <div class="btns"><button id="btn-settings-close">Lưu & Đóng</button></div>
     </div>
   </div>
@@ -182,7 +264,14 @@
     <div class="card">
       <h2 id="res-title">Thắp sáng hoàn tất!</h2>
       <p id="res-desc"></p>
-      <p id="res-score" style="font-size:20px;color:#F2C14E;font-weight:700"></p>
+      <p id="res-score" style="font-size:1.11rem;color:#F2C14E;font-weight:700"></p>
+      <div id="lb-save" style="display:none">
+        <div class="btns row" style="align-items:center">
+          <input id="lb-name" maxlength="12" placeholder="Tên của bạn (3–12 ký tự)" autocomplete="off" />
+          <button id="btn-save-score">Lưu điểm</button>
+        </div>
+        <p id="lb-status"></p>
+      </div>
       <div class="btns">
         <button id="btn-next">Đêm kế tiếp</button>
         <button id="btn-retry-res" class="sec">Chơi lại Đêm này</button>

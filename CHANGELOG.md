@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.0.0 / Phase 4 — Contract v1.3] (2026-11-20)
+- **Chế độ Benchmark (`bench_cmd`):** `node scripts/bench.js --seed 42 --duration 30 --out bench.json` (1280×720, tắt vsync, 200 Bóng Mực `wander`, 100 đom đóm, L1–L3 fuel 100, camera quỹ đạo `r=30, Y=15`, 3 s khởi động + 30 s đo).
+- **Soak test (`soak_cmd`):** `node src/headless/soak.js --seed 7 --nights 10 --out soak.json` (10 Đêm liên tiếp xoay vòng 1→2→3, `crashes: 0`, RSS ổn định `≤ 1.2×`).
+- **Bảng xếp hạng cục bộ:** lưu Top 10 tại `data/leaderboard.json` qua `GET/POST /api/leaderboard`, hỗ trợ tên `3–12` ký tự (gồm tiếng Việt có dấu), xuất bằng `node scripts/serve.js --export-leaderboard out.json`.
+- **Dễ tiếp cận (Accessibility):** đổi 9 phím (báo trùng phím + khôi phục mặc định), phụ đề & mũi tên chỉ Bóng Mực mới, giảm chuyển động, cỡ chữ UI `≥ 18 px` + tùy chọn chữ lớn `×1.25`.
+- **Đóng gói offline & sửa lỗi:** đóng gói cục bộ `src/web/vendor/three.module.js` (Three.js 0.170.0), sửa spawn Đêm 3 Đảo Chuông sang `(0, 0, -20)` thoát khỏi trụ tầng 2.
+- **Sáng tạo của tôi:** "Lời Thì Thầm Ngọn Đèn" (câu thoại cổ tích ngắn hiện 3 s khi thắp đèn trên Web, tự tắt khi headless/bench).
+- **Tài liệu & Retro:** hoàn thiện `README.md`, `CREDITS.md`, `docs/notes/retro.md`, `docs/notes/phase-4.md`, commit `bench.json` và `soak.json`.
+
 ## [Phase 3 — Contract v1.2] (2026-11-20) — BREAKING CHANGES
 ### Thay đổi phá vỡ tương thích (Breaking Changes)
 - **Luật thắng [THAY THẾ]:** Bỏ thắng sớm `all_lit` và bỏ thưởng thời gian. Chỉ thắng khi sống sót tới bình minh (`reason: "dawn_survived"`) với số đèn đang sáng `≥ ceil(0.6 × tổng đèn)` (Đêm 1: 3/5, Đêm 2: 4/6, Đêm 3: 5/7).

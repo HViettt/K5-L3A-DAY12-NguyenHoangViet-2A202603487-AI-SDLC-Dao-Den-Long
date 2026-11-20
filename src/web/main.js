@@ -1,8 +1,11 @@
 // Hiển thị 3D (Three.js) + HUD + Luồng 3 Đêm — chỉ đọc state từ src/core/, KHÔNG chứa luật chơi.
+// Ticket-04: benchmark (?bench=1), bảng xếp hạng cục bộ, dễ tiếp cận (đổi phím, phụ đề,
+// giảm chuyển động, chữ lớn), "Sáng tạo của tôi" (lời thì thầm khi thắp đèn, tắt khi bench).
 import * as THREE from "three";
 import { createWorld, step, snapshot } from "../core/world.js";
 import { MAPS } from "../core/maps.js";
 import { TUNING as T, DT, LAWS } from "../core/config.js";
+import { createRng } from "../core/rng.js";
 import { SoundEngine } from "./audio.js";
 
 // Bảng màu chuẩn Ticket-02 Phần 3
@@ -46,12 +49,44 @@ const NIGHT_INTRO = {
   },
 };
 
+// ═══ Ticket-04 mục 1: tham số chế độ Benchmark (?bench=1&seed=42&duration=30&t0=...) ═══
+const qs = new URLSearchParams(location.search);
+const BENCH = qs.get("bench") === "1";
+const BENCH_SEED = Number.parseInt(qs.get("seed") ?? "42", 10);
+const BENCH_DURATION = Number.parseFloat(qs.get("duration") ?? "30");
+const BENCH_T0 = Number.parseInt(qs.get("t0") ?? String(Date.now()), 10);
+
 const SETTINGS_KEY = "dao_den_long_settings_v1";
+// Ticket-04 mục 4: mặc định 9 phím hành động (đổi được trong Cài đặt)
+const DEFAULT_KEYS = {
+  up: "KeyW",
+  down: "KeyS",
+  left: "KeyA",
+  right: "KeyD",
+  jump: "Space",
+  dash: "ShiftLeft",
+  interact: "KeyE",
+  pulse: "KeyF",
+  pause: "KeyP",
+};
+const ACTION_LABEL = {
+  up: "Tiến",
+  down: "Lùi",
+  left: "Trái",
+  right: "Phải",
+  jump: "Nhảy",
+  dash: "Lướt",
+  interact: "Tương tác (nạp/châm dầu)",
+  pulse: "Tỏa sáng",
+  pause: "Tạm dừng",
+};
 const settings = (() => {
+  const base = { volume: 0.6, sensitivity: 1.0, cbMode: false, reduceMotion: false, bigFont: false, keys: { ...DEFAULT_KEYS } };
   try {
-    return { volume: 0.6, sensitivity: 1.0, cbMode: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return { ...base, ...saved, keys: { ...DEFAULT_KEYS, ...(saved.keys ?? {}) } };
   } catch {
-    return { volume: 0.6, sensitivity: 1.0, cbMode: false };
+    return base;
   }
 })();
 function saveSettings() {
@@ -61,7 +96,26 @@ function saveSettings() {
 function applyColorblind() {
   document.body.classList.toggle("cb", !!settings.cbMode);
 }
-applyColorblind();
+// Ticket-04 mục 4: áp dụng tuỳ chọn dễ tiếp cận (giảm chuyển động, chữ lớn)
+function applyAccessibility() {
+  applyColorblind();
+  document.body.classList.toggle("reduce-motion", !!settings.reduceMotion);
+  document.documentElement.classList.toggle("big-font", !!settings.bigFont);
+}
+applyAccessibility();
+
+function keyName(code) {
+  const map = {
+    Space: "Space", ShiftLeft: "Shift", ShiftRight: "Shift phải",
+    ControlLeft: "Ctrl", ControlRight: "Ctrl", AltLeft: "Alt", AltRight: "Alt",
+    ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→",
+    Enter: "Enter", Escape: "Esc", Tab: "Tab", CapsLock: "Caps Lock",
+  };
+  if (map[code]) return map[code];
+  if (code.startsWith("Key")) return code.slice(3);
+  if (code.startsWith("Digit")) return code.slice(5);
+  return code;
+}
 
 const sfx = new SoundEngine(settings.volume);
 
@@ -362,6 +416,8 @@ const moteSlots = [...moteBarEl.children];
 let mode = "menu";
 let currentNight = 1;
 let totalScore = 0;
+let nightsWonRun = 0; // số Đêm thắng trong hành trình hiện tại (để lưu bảng xếp hạng)
+let currentSeed = 8; // seed của Đêm đang chơi (để lưu bảng xếp hạng)
 let world = null;
 let camYawDeg = 0;
 let lastCountdownSec = 11;
@@ -371,7 +427,7 @@ const keys = new Set();
 const edgePress = { jump: false, interact: false, pulse: false, dash: false, pause: false };
 
 function showOnly(screenId) {
-  for (const id of ["screen-menu", "screen-intro", "screen-pause", "screen-settings", "screen-result"]) {
+  for (const id of ["screen-menu", "screen-leaderboard", "screen-intro", "screen-pause", "screen-settings", "screen-result"]) {
     $(id).classList.toggle("show", id === screenId);
   }
   $("hud").style.display = screenId === null || screenId === "screen-pause" ? "block" : "none";
@@ -390,10 +446,12 @@ function openIntro(night) {
 function startNight(night) {
   sfx.unlock();
   currentNight = night;
-  world = createWorld({ seed: night * 101 + 7, night });
+  currentSeed = night * 101 + 7;
+  world = createWorld({ seed: currentSeed, night });
   buildMapScene(night);
   camYawDeg = 0;
   lastCountdownSec = 11;
+  knownShades.clear();
   mode = "playing";
   $("night-label").textContent = `Đêm ${night} — ${MAPS[night].name}`;
   showOnly(null);
@@ -404,9 +462,9 @@ function togglePause() {
   edgePress.pause = true;
 }
 
-$("btn-start").onclick = () => { totalScore = 0; openIntro(1); };
+$("btn-start").onclick = () => { totalScore = 0; nightsWonRun = 0; openIntro(1); };
 document.querySelectorAll("[data-night]").forEach((b) => {
-  b.onclick = () => { totalScore = 0; openIntro(Number(b.dataset.night)); };
+  b.onclick = () => { totalScore = 0; nightsWonRun = 0; openIntro(Number(b.dataset.night)); };
 });
 $("btn-intro-go").onclick = () => startNight(currentNight);
 $("btn-resume").onclick = () => togglePause();
@@ -416,6 +474,91 @@ $("btn-retry-res").onclick = () => startNight(currentNight);
 $("btn-res-menu").onclick = () => { mode = "menu"; world = null; showOnly("screen-menu"); };
 $("btn-next").onclick = () => openIntro(currentNight + 1);
 
+// ═══ Ticket-04 mục 3: Bảng xếp hạng cục bộ ═══
+$("btn-leaderboard").onclick = async () => {
+  mode = "menu";
+  showOnly("screen-leaderboard");
+  const body = $("lb-body");
+  body.innerHTML = "";
+  $("lb-msg").textContent = "Đang tải…";
+  try {
+    const res = await fetch("/api/leaderboard");
+    const data = await res.json();
+    const entries = (data.entries ?? []).slice(0, 10);
+    if (entries.length === 0) {
+      $("lb-msg").textContent = "Chưa có ai lên bảng — hãy là người đầu tiên!";
+      return;
+    }
+    $("lb-msg").textContent = "";
+    entries.forEach((e, i) => {
+      const tr = document.createElement("tr");
+      const at = String(e.achieved_at ?? "").replace("T", " ").slice(0, 16);
+      const cells = [
+        { v: String(i + 1) },
+        { v: String(e.name) },
+        { v: String(e.score), num: true },
+        { v: String(e.nights_won), num: true },
+        { v: at },
+      ];
+      for (const c of cells) {
+        const td = document.createElement("td");
+        if (c.num) td.className = "num";
+        td.textContent = c.v;
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    });
+  } catch {
+    $("lb-msg").textContent = "Không tải được bảng xếp hạng (server chưa chạy?).";
+  }
+};
+$("btn-lb-close").onclick = () => showOnly("screen-menu");
+
+async function saveScoreToLeaderboard() {
+  const name = $("lb-name").value.trim();
+  const status = $("lb-status");
+  // 3–12 ký tự chữ/số/_ (khớp NAME_RE phía server, hỗ trợ tiếng Việt có dấu)
+  if (!/^[\p{L}0-9_]{3,12}$/u.test(name)) {
+    status.textContent = "Tên phải dài 3–12 ký tự (chữ cái, số hoặc _, không khoảng trắng).";
+    return;
+  }
+  $("btn-save-score").disabled = true;
+  status.textContent = "Đang lưu…";
+  try {
+    const res = await fetch("/api/leaderboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, score: totalScore, nights_won: nightsWonRun, seed: currentSeed }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Lỗi lưu điểm");
+    status.textContent = "✓ Đã lưu điểm vào bảng xếp hạng!";
+  } catch (e) {
+    status.textContent = `Lỗi: ${e.message}`;
+    $("btn-save-score").disabled = false;
+  }
+}
+$("btn-save-score").onclick = saveScoreToLeaderboard;
+
+// ═══ Ticket-04 mục 5: "Sáng tạo của tôi" — lời thì thầm cổ tích khi thắp đèn (tắt khi bench) ═══
+const WHISPERS = [
+  "Ngọn đèn khẽ thở hơi ấm, và màn sương lùi lại một bước…",
+  "Người ta bảo: đèn nào được thắp bằng lòng tốt sẽ cháy tới bình minh.",
+  "Đom đóm xung quanh nghiêng mình, như vỗ tay cho ngọn lửa mới.",
+  "Nơi có ánh đèn, sao trời ghé lại nghỉ chân một đêm.",
+  "Ông Đăng nơi bến xa mỉm cười — lại có thêm một ngọn đèn được canh.",
+];
+let whisperIdx = 0;
+let whisperTimer = null;
+function showWhisper() {
+  if (BENCH) return; // tắt trong chế độ benchmark
+  const el = $("whisper");
+  el.textContent = `✨ ${WHISPERS[whisperIdx++ % WHISPERS.length]}`;
+  el.classList.add("show");
+  clearTimeout(whisperTimer);
+  whisperTimer = setTimeout(() => el.classList.remove("show"), 3000);
+}
+
 function openSettings(from) {
   settingsReturnTo = from;
   $("opt-vol").value = Math.round(settings.volume * 100);
@@ -423,6 +566,10 @@ function openSettings(from) {
   $("opt-sens").value = settings.sensitivity;
   $("val-sens").textContent = `${settings.sensitivity.toFixed(1)}x`;
   $("opt-cb").checked = !!settings.cbMode;
+  $("opt-motion").checked = !!settings.reduceMotion;
+  $("opt-big").checked = !!settings.bigFont;
+  renderKeybinds();
+  $("keybind-error").textContent = "";
   showOnly("screen-settings");
 }
 $("btn-menu-settings").onclick = () => openSettings("menu");
@@ -439,21 +586,82 @@ $("opt-sens").oninput = (e) => {
 // Ticket-03 mục 6: "Bảng màu dễ phân biệt" — lưu localStorage, áp dụng ngay khi bật/tắt
 $("opt-cb").onchange = (e) => {
   settings.cbMode = !!e.target.checked;
-  applyColorblind();
+  applyAccessibility();
+};
+// Ticket-04 mục 4: giảm chuyển động + chữ lớn
+$("opt-motion").onchange = (e) => {
+  settings.reduceMotion = !!e.target.checked;
+  applyAccessibility();
+};
+$("opt-big").onchange = (e) => {
+  settings.bigFont = !!e.target.checked;
+  applyAccessibility();
 };
 $("btn-settings-close").onclick = () => {
   saveSettings();
   showOnly(settingsReturnTo === "pause" ? "screen-pause" : "screen-menu");
 };
 
+// ═══ Ticket-04 mục 4: đổi phím 9 hành động, báo trùng phím, khôi phục mặc định ═══
+let captureAction = null;
+function renderKeybinds() {
+  const wrap = $("keybinds");
+  wrap.innerHTML = "";
+  for (const act of Object.keys(DEFAULT_KEYS)) {
+    const row = document.createElement("div");
+    row.className = "keybind-row";
+    const label = document.createElement("span");
+    label.textContent = ACTION_LABEL[act];
+    const btn = document.createElement("button");
+    btn.className = "sec keybind-btn";
+    btn.textContent = captureAction === act ? "Nhấn phím…" : keyName(settings.keys[act]);
+    btn.onclick = () => {
+      captureAction = act;
+      $("keybind-error").textContent = "";
+      renderKeybinds();
+    };
+    row.append(label, btn);
+    wrap.appendChild(row);
+  }
+}
+$("btn-keys-reset").onclick = () => {
+  settings.keys = { ...DEFAULT_KEYS };
+  captureAction = null;
+  $("keybind-error").textContent = "";
+  renderKeybinds();
+  saveSettings();
+};
+
 addEventListener("keydown", (e) => {
+  if (captureAction) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.code === "Escape") {
+      // Esc để huỷ bắt phím
+      captureAction = null;
+      $("keybind-error").textContent = "";
+      renderKeybinds();
+      return;
+    }
+    const conflict = Object.entries(settings.keys).find(([act, code]) => code === e.code && act !== captureAction);
+    if (conflict) {
+      $("keybind-error").textContent = `Phím "${keyName(e.code)}" đã được dùng cho hành động "${ACTION_LABEL[conflict[0]]}" — chọn phím khác.`;
+      return;
+    }
+    settings.keys[captureAction] = e.code;
+    captureAction = null;
+    $("keybind-error").textContent = "";
+    renderKeybinds();
+    saveSettings();
+    return;
+  }
   sfx.unlock();
   if (!keys.has(e.code)) {
-    if (e.code === "Space") edgePress.jump = true;
-    if (e.code === "KeyE") edgePress.interact = true;
-    if (e.code === "KeyF") edgePress.pulse = true;
-    if (e.code === "ShiftLeft" || e.code === "ShiftRight") edgePress.dash = true;
-    if (e.code === "Escape" || e.code === "KeyP") togglePause();
+    if (e.code === settings.keys.jump) edgePress.jump = true;
+    if (e.code === settings.keys.interact) edgePress.interact = true;
+    if (e.code === settings.keys.pulse) edgePress.pulse = true;
+    if (e.code === settings.keys.dash) edgePress.dash = true;
+    if (e.code === settings.keys.pause || e.code === "Escape") togglePause();
   }
   keys.add(e.code);
 });
@@ -479,7 +687,68 @@ addEventListener("resize", () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
+// ═══ Ticket-04 mục 4: phụ đề / chỉ báo hình ảnh ═══
+const knownShades = new Set(); // id Bóng Mực đã biết — id mới = "vừa xuất hiện"
+let shadeAlertUntil = 0;
+let shadeAlertPos = null;
+
 const projVec = new THREE.Vector3();
+// Chiếu điểm 3D lên mép màn hình, trả về vị trí mũi tên (px) hoặc null nếu đang trên màn hình
+function edgeArrowPos(x, y, z) {
+  projVec.set(x, y, z).project(camera);
+  const inFront = projVec.z < 1;
+  const onScreen = inFront && Math.abs(projVec.x) <= 0.95 && Math.abs(projVec.y) <= 0.95;
+  if (onScreen) return null;
+  const nx = inFront ? projVec.x : -projVec.x;
+  const ny = inFront ? projVec.y : -projVec.y;
+  const ang = Math.atan2(-ny, nx);
+  const pad = 42, cx = innerWidth / 2, cy = innerHeight / 2;
+  const scale = Math.min((cx - pad) / Math.max(0.001, Math.abs(Math.cos(ang))), (cy - pad) / Math.max(0.001, Math.abs(Math.sin(ang))));
+  return { left: cx + Math.cos(ang) * scale, top: cy + Math.sin(ang) * scale, ang };
+}
+function placeArrow(el, target) {
+  const p = target !== null ? edgeArrowPos(target[0], target[1], target[2]) : null;
+  if (p && mode === "playing") {
+    el.style.display = "flex";
+    el.style.left = `${p.left}px`;
+    el.style.top = `${p.top}px`;
+    el.style.transform = `rotate(${p.ang}rad)`;
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function updateSubtitles(snap, sec, windWarn) {
+  const nowMs = performance.now();
+  // Bóng Mực vừa xuất hiện (id mới trong snapshot)
+  for (const s of snap.shades) {
+    if (!knownShades.has(s.id)) {
+      knownShades.add(s.id);
+      shadeAlertUntil = nowMs + 3000;
+      shadeAlertPos = [s.pos[0], s.pos[1], s.pos[2]];
+    }
+  }
+  const lowFuel = snap.lanterns.some((l) => l.lit && l.fuel < T.low_fuel_threshold);
+  let sub = "";
+  let arrowTarget = null;
+  if (performance.now() < shadeAlertUntil) {
+    sub = "⚠ Bóng Mực vừa xuất hiện!";
+    arrowTarget = shadeAlertPos;
+  } else if (lowFuel) {
+    sub = "⚠ Có đèn đang cạn dầu (fuel < 30) — nhớ châm dầu!";
+  } else if (snap.wind.active) {
+    sub = "🌬 Gió mạnh đang thổi!";
+  } else if (windWarn) {
+    sub = "🌬 Gió sắp thổi…";
+  } else if (sec <= 10 && sec > 0) {
+    sub = "⏱ 10 giây cuối cùng!";
+  }
+  const subEl = $("subtitle");
+  subEl.textContent = sub;
+  subEl.style.display = sub ? "block" : "none";
+  placeArrow($("shade-arrow"), arrowTarget);
+}
+
 function updateHud(snap) {
   const fl = $("flames");
   fl.innerHTML = "";
@@ -557,34 +826,15 @@ function updateHud(snap) {
     promptE.style.display = "none";
   }
 
-  const arrow = $("offscreen-arrow");
-  if (nearest && mode === "playing") {
-    projVec.set(nearest.pos[0], nearest.pos[1] + 3.4, nearest.pos[2]).project(camera);
-    const inFront = projVec.z < 1;
-    const onScreen = inFront && Math.abs(projVec.x) <= 0.95 && Math.abs(projVec.y) <= 0.95;
-    if (!onScreen) {
-      const nx = inFront ? projVec.x : -projVec.x;
-      const ny = inFront ? projVec.y : -projVec.y;
-      const ang = Math.atan2(-ny, nx);
-      const pad = 42, cx = innerWidth / 2, cy = innerHeight / 2;
-      const scale = Math.min((cx - pad) / Math.max(0.001, Math.abs(Math.cos(ang))), (cy - pad) / Math.max(0.001, Math.abs(Math.sin(ang))));
-      arrow.style.display = "flex";
-      arrow.style.left = `${cx + Math.cos(ang) * scale}px`;
-      arrow.style.top = `${cy + Math.sin(ang) * scale}px`;
-      arrow.style.transform = `rotate(${ang}rad)`;
-    } else {
-      arrow.style.display = "none";
-    }
-  } else {
-    arrow.style.display = "none";
-  }
+  placeArrow($("offscreen-arrow"), nearest ? [nearest.pos[0], nearest.pos[1] + 3.4, nearest.pos[2]] : null);
+  updateSubtitles(snap, sec, windWarn);
 }
 
 function handleEvents(events, snap) {
   for (const ev of events) {
     if (ev.name === "mote_picked") sfx.pickup();
     else if (ev.name === "deposit") sfx.deposit();
-    else if (ev.name === "lantern_lit") sfx.lanternLit();
+    else if (ev.name === "lantern_lit") { sfx.lanternLit(); showWhisper(); }
     else if (ev.name === "pulse") { sfx.pulse(); pulseFxT = 0.35; }
     else if (ev.name === "player_hit") sfx.hit();
     else if (ev.name === "dash") sfx.dash();
@@ -595,23 +845,188 @@ function handleEvents(events, snap) {
     else if (ev.name === "game_over") {
       mode = "result";
       const won = ev.data.result === "won";
-      if (won) { sfx.win(); totalScore += snap.score; } else sfx.lose();
+      if (won) { sfx.win(); totalScore += snap.score; nightsWonRun = Math.min(3, nightsWonRun + 1); } else sfx.lose();
       const isDawn = won && currentNight === 3;
       $("res-title").textContent = isDawn ? "🌅 Bình Minh trên Đảo Đèn Lồng!" : (won ? `Hoàn thành Đêm ${currentNight}!` : "Sương đen đã nuốt ánh sáng…");
       $("res-desc").textContent = isDawn
         ? "Cả ba hòn đảo đã rực sáng. Mây đã hoàn thành sứ mệnh của người giữ đèn!"
-        : (won ? "Mọi Đèn Lồng Lớn trên đảo đã được thắp sáng." : (ev.data.reason === "no_flames" ? "Mây đã mất hết Ngọn Lửa." : "Bình minh đã tới trước khi kịp thắp hết đèn."));
+        : (won ? "Mọi Đèn Lồng Lớn trên đảo đã được thắp sáng." : (ev.data.reason === "no_flames" ? "Mây đã mất hết Ngọn Lửa." : "Bình minh đã tới trước khi kịp giữ đủ đèn sáng."));
       $("res-score").textContent = isDawn ? `Tổng điểm cả 3 Đêm: ${totalScore}` : `Điểm Đêm ${currentNight}: ${snap.score}`;
       $("btn-next").style.display = (won && currentNight < 3) ? "block" : "none";
+      // Ticket-04 mục 3: nhập tên khi thắng Đêm 3 Bình Minh HOẶC thua ở bất kỳ Đêm nào
+      const canSave = isDawn || !won;
+      $("lb-save").style.display = canSave ? "block" : "none";
+      if (canSave) {
+        $("lb-name").value = "";
+        $("lb-status").textContent = "";
+        $("btn-save-score").disabled = false;
+      }
       showOnly("screen-result");
     }
   }
 }
 
+// ═══ Ticket-04 mục 1: chế độ Benchmark ═══
+let benchState = null;
+
+function initBench() {
+  document.body.classList.add("bench");
+  const rng = createRng(BENCH_SEED);
+  const lanterns = MAPS[1].lanterns.map((l, i) => ({
+    id: l.id,
+    pos: [l.x, l.y, l.z],
+    lit: i < 3, // L1–L3 sáng fuel 100
+    fuel: i < 3 ? T.fuel_max : 0,
+    deposited: i < 3 ? T.lantern_cost : 0,
+  }));
+  const motes = [];
+  for (let i = 0; i < 100; i++) {
+    const r = 3 + rng() * 35;
+    const a = rng() * Math.PI * 2;
+    motes.push({ id: `M${i + 1}`, pos: [r * Math.cos(a), 0, r * Math.sin(a)], kind: "random" });
+  }
+  const shades = [];
+  for (let i = 0; i < 200; i++) {
+    const r = rng() * 38; // rải đều trong đảo, r ≤ 38
+    const a = rng() * Math.PI * 2;
+    const x = r * Math.cos(a);
+    const z = r * Math.sin(a);
+    const d = rng() * Math.PI * 2;
+    shades.push({ id: `S${i + 1}`, pos: [x, 1, z], state: "wander", sim: { x, z, dx: Math.cos(d), dz: Math.sin(d), timer: 0 } });
+  }
+  buildMapScene(1);
+  mayGroup.position.set(0, 0, 0);
+  mayGroup.visible = true;
+  benchState = { rng, lanterns, motes, shades, first: null, lastNow: 0, warmupEnd: 0, measuring: false, measureStart: 0, dts: [], done: false, loadMs: null };
+}
+
+// Bóng Mực bench tự di chuyển theo luật wander: đổi hướng ngẫu nhiên (rng seed),
+// bị chặn ở mép đảo và ngoài vùng an toàn bán kính 6 của L1–L3 (đổi hướng khi chạm).
+function benchSimShades(dtSec) {
+  const st = benchState;
+  const litL = st.lanterns.filter((l) => l.lit);
+  const speed = LAWS.shadeWanderSpeed;
+  for (const s of st.shades) {
+    const sim = s.sim;
+    sim.timer += dtSec;
+    if (sim.timer >= 2) {
+      sim.timer = 0;
+      const a = st.rng() * Math.PI * 2;
+      sim.dx = Math.cos(a);
+      sim.dz = Math.sin(a);
+    }
+    const nx = sim.x + sim.dx * speed * dtSec;
+    const nz = sim.z + sim.dz * speed * dtSec;
+    let blocked = Math.hypot(nx, nz) > 39; // mép đảo Đêm 1 (bán kính 40, đệm 1 m)
+    if (!blocked) {
+      for (const l of litL) {
+        if (Math.hypot(nx - l.pos[0], nz - l.pos[2]) < T.safe_radius) { blocked = true; break; }
+      }
+    }
+    if (blocked) {
+      sim.dx = -sim.dx;
+      sim.dz = -sim.dz;
+    } else {
+      sim.x = nx;
+      sim.z = nz;
+    }
+    s.pos[0] = sim.x;
+    s.pos[2] = sim.z;
+  }
+}
+
+function benchSnap() {
+  const st = benchState;
+  return {
+    tick: 0,
+    sim_tick: 0,
+    state: "playing",
+    night: 1,
+    time_left_s: 9999, // không kết thúc
+    score: 0,
+    wind: { active: false, dir_deg: 0 },
+    player: {
+      pos: [0, 0, 0], vel: [0, 0, 0], grounded: true, invuln: false,
+      dash_cd_s: 0, pulse_cd_s: 0, charm_s: 0, flames: 3, carried: 0, capacity: T.carry_capacity,
+    },
+    lanterns: st.lanterns,
+    motes: st.motes,
+    shades: st.shades,
+    drifters: [],
+    charms: [],
+  };
+}
+
+function benchFrame(now) {
+  const st = benchState;
+  if (st.done) return;
+  if (st.first === null) {
+    st.first = now;
+    st.lastNow = now;
+    st.warmupEnd = now + 3000; // 3 s khởi động (không đo)
+    st.loadMs = Date.now() - BENCH_T0; // load_ms tính ở khung hình đầu tiên
+  }
+  const dtMs = now - st.lastNow;
+  st.lastNow = now;
+  const tSec = (now - st.first) / 1000;
+
+  benchSimShades(Math.min(Math.max(dtMs, 0) / 1000, 0.25));
+  // Camera bay tròn: tâm (0,0,0), r=30, Y=15, 15 s/vòng, ngược chiều kim đồng hồ, xuất phát (30,15,0)
+  const a = (2 * Math.PI * tSec) / 15;
+  camera.position.set(30 * Math.cos(a), 15, 30 * Math.sin(a));
+  camera.lookAt(0, 0, 0);
+  syncEntities(benchSnap(), tSec);
+
+  if (!st.measuring && now >= st.warmupEnd) {
+    st.measuring = true;
+    st.measureStart = now;
+  }
+  if (st.measuring) {
+    st.dts.push(dtMs);
+    if (now - st.measureStart >= BENCH_DURATION * 1000) finishBench();
+  }
+}
+
+function finishBench() {
+  const st = benchState;
+  st.done = true;
+  const sorted = st.dts.slice().sort((x, y) => x - y);
+  const n = sorted.length;
+  const sum = sorted.reduce((s, v) => s + v, 0);
+  // p1_low_fps: 1% khung chậm nhất (k dt lớn nhất), fps = 1000/mean(top k)
+  const k = Math.max(1, Math.ceil(0.01 * n));
+  const worst = sorted.slice(Math.max(0, n - k));
+  const meanWorst = worst.reduce((s, v) => s + v, 0) / worst.length;
+  const payload = {
+    contract_version: "1.3",
+    frames: n,
+    avg_fps: n > 0 ? (1000 * n) / sum : 0,
+    p1_low_fps: meanWorst > 0 ? 1000 / meanWorst : 0,
+    frame_ms_p95: n > 0 ? sorted[Math.max(0, Math.ceil(0.95 * n) - 1)] : 0, // phân vị 95 (nearest-rank)
+    load_ms: st.loadMs,
+    peak_mem_mb: null, // trình duyệt không cho đo bộ nhớ GPU/renderer qua rAF chuẩn → null (giải thích Ticket-04 mục 1)
+    vsync_off: true,
+    renderer: "Three.js 0.170.0 (WebGL2)",
+  };
+  renderer.setAnimationLoop(null); // dừng vòng lặp sau khi đo xong
+  fetch("/__bench_done", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => console.warn("bench: không gửi được /__bench_done (chạy ngoài bench runner?)", payload));
+}
+
+if (BENCH) initBench();
+
 let acc = 0, lastNow = performance.now();
 let fpsFrames = 0, fpsTimer = lastNow;
 
 renderer.setAnimationLoop((now) => {
+  if (BENCH) {
+    benchFrame(now);
+    renderer.render(scene, camera);
+    return;
+  }
   const dt = Math.min((now - lastNow) / 1000, 0.25);
   lastNow = now;
   fpsFrames++;
@@ -627,8 +1042,8 @@ renderer.setAnimationLoop((now) => {
     while (acc >= DT) {
       // Camera đứng sau Mây phía -Z, quay về +Z (yaw 0): W = tiến về +Z, A = trái (+X).
       // Core xoay input theo cam_yaw_deg: vx = mx·cos + mz·sin; vz = -mx·sin + mz·cos.
-      const mx = (keys.has("KeyA") ? 1 : 0) - (keys.has("KeyD") ? 1 : 0);
-      const mz = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
+      const mx = (keys.has(settings.keys.left) ? 1 : 0) - (keys.has(settings.keys.right) ? 1 : 0);
+      const mz = (keys.has(settings.keys.up) ? 1 : 0) - (keys.has(settings.keys.down) ? 1 : 0);
       if (edgePress.jump && world.player.grounded && mode === "playing") sfx.jump();
       const input = {
         move: mode === "playing" ? [mx, mz] : [0, 0],
@@ -650,20 +1065,22 @@ renderer.setAnimationLoop((now) => {
     const snap = snapshot(world);
     const [px, py, pz] = snap.player.pos;
     mayGroup.position.set(px, py, pz);
-    mayGroup.visible = !(snap.player.invuln && Math.floor(now / 80) % 2 === 0);
+    // Ticket-04 mục 4: "Giảm chuyển động" tắt hiệu ứng chớp (Mây nhấp nháy khi bất tử)
+    mayGroup.visible = settings.reduceMotion ? true : !(snap.player.invuln && Math.floor(now / 80) % 2 === 0);
 
     const rad = (camYawDeg * Math.PI) / 180;
     const camDist = 9.5;
     camera.position.set(px - Math.sin(rad) * camDist, py + 4.8, pz - Math.cos(rad) * camDist);
     camera.lookAt(px, py + 1.3, pz);
 
-    if (pulseFxT > 0) {
+    if (pulseFxT > 0 && !settings.reduceMotion) {
       pulseFxT = Math.max(0, pulseFxT - dt);
       const prog = 1 - pulseFxT / 0.35;
       pulseRing.position.set(px, py + 0.8, pz);
       pulseRing.scale.setScalar(1 + prog * T.pulse_radius);
       pulseRing.material.opacity = (1 - prog) * 0.85;
     } else {
+      pulseFxT = 0;
       pulseRing.material.opacity = 0;
     }
 
