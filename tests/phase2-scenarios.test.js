@@ -127,7 +127,7 @@ test("AC-05 [shade-states.json]: đủ 5 trạng thái spawning/wander/chase/rec
   assert.equal(s70.shades.find((s) => s.id === "S2").state, "chase"); // hết stun 60 tick (scenario cho sẵn)
   const hits = events(lines, "player_hit");
   assert.equal(hits.length, 1);
-  assert.equal(hits[0].tick, 118); // S2 hết stun ở Bước 2 tick 60 và bắt đầu đuổi ngay từ tick 60
+  assert.equal(hits[0].tick, 119); // Ticket-03: hết stun về wander ở tick 60, chuyển chase ở Bước 8 tick 60 → chạm tick 119
   assert.deepEqual(hits[0].data, { by: "shade", flames: 2, dropped: 0 });
   const s120 = snapAt(lines, 120);
   assert.equal(s120.shades.find((s) => s.id === "S2").state, "recoil"); // bóng lùi 2 m trong 60 tick

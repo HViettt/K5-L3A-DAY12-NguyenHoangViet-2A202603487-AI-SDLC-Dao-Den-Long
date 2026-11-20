@@ -71,7 +71,7 @@ function validateScenario(sc, night) {
   if (sc.player !== undefined) {
     if (typeof sc.player !== "object" || sc.player === null) err("player phải là object");
     if (sc.player.pos !== undefined) vec3(sc.player.pos, "player.pos");
-    for (const k of ["carried", "flames", "invuln_ticks", "dash_cd_ticks", "pulse_cd_ticks", "charm_ticks"]) {
+    for (const k of ["carried", "flames", "invuln_ticks", "dash_cd_ticks", "pulse_cd_ticks", "charm_ticks", "successful_lights"]) {
       if (sc.player[k] !== undefined && !(int(sc.player[k]) && sc.player[k] >= 0)) {
         err(`player.${k} phải là số nguyên ≥ 0`);
       }
@@ -84,7 +84,7 @@ function validateScenario(sc, night) {
     if (!Array.isArray(sc.motes)) err("motes phải là mảng");
     sc.motes.forEach((m, i) => vec3(m, `motes[${i}]`));
   }
-  const shadeStates = ["spawning", "wander", "chase", "recoil", "stunned"];
+  const shadeStates = ["spawning", "wander", "chase", "recoil", "stunned", "drain"];
   if (sc.shades !== undefined) {
     if (!Array.isArray(sc.shades)) err("shades phải là mảng");
     sc.shades.forEach((s, i) => {
@@ -96,6 +96,9 @@ function validateScenario(sc, night) {
       }
       if (s.state_ticks_left !== undefined && !(int(s.state_ticks_left) && s.state_ticks_left >= 0)) {
         err(`shades[${i}].state_ticks_left phải là số nguyên ≥ 0`);
+      }
+      if (s.target_lantern_id !== undefined && typeof s.target_lantern_id !== "string") {
+        err(`shades[${i}].target_lantern_id phải là chuỗi`);
       }
     });
   }
@@ -139,6 +142,10 @@ function validateScenario(sc, night) {
         err(`lanterns[${i}].deposited phải là số nguyên ≥ 0`);
       }
       if (l.lit !== undefined && typeof l.lit !== "boolean") err(`lanterns[${i}].lit phải là boolean`);
+      if (l.fuel !== undefined && !(num(l.fuel) && l.fuel >= 0 && l.fuel <= 100)) {
+        err(`lanterns[${i}].fuel phải là số trong [0,100]`);
+      }
+      if (l.ever_lit !== undefined && typeof l.ever_lit !== "boolean") err(`lanterns[${i}].ever_lit phải là boolean`);
     });
   }
   if (sc.time_left_s !== undefined && !(num(sc.time_left_s) && sc.time_left_s > 0)) {

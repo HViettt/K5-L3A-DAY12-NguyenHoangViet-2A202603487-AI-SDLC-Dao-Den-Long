@@ -44,17 +44,18 @@ test("R2: --ticks 10 → snapshot tick 0 và 10, time_left = 300 − 10/60", () 
   assert.equal(snaps.at(-1).sim_tick, 10);
 });
 
-test("R2: game kết thúc sớm → dừng đúng lúc, có snapshot cuối, end.state won", () => {
-  const out = path.join(tmp, "r2win.jsonl");
-  const r = runCli(["--seed", "1", "--night", "1", "--ticks", "100", "--out", out, "--scenario", scPath("r9-win"), "--inputs", inputsFile([{ tick: 0, interact: true }, { tick: 1, interact: false }])]);
+// Cập nhật theo TICKET-03: bỏ thắng sớm all_lit → kiểm tra kết thúc sớm qua lost no_flames (r9-lose).
+test("R2: game kết thúc sớm → dừng đúng lúc, có snapshot cuối, end.state lost", () => {
+  const out = path.join(tmp, "r2lose.jsonl");
+  const r = runCli(["--seed", "1", "--night", "1", "--ticks", "100", "--out", out, "--scenario", scPath("r9-lose")]);
   assert.equal(r.status, 0, r.stderr);
   const lines = readLines(out);
   const last = lines.at(-1);
   assert.equal(last.type, "end");
   assert.equal(last.ticks, 1);
-  assert.equal(last.state, "won");
+  assert.equal(last.state, "lost");
   assert.ok(lines.some((l) => l.type === "event" && l.name === "game_over" && l.tick === 1));
-  assert.ok(lines.some((l) => l.type === "snapshot" && l.tick === 1)); // snapshot cuối dù 1 không chia hết 10
+  assert.ok(lines.some((l) => l.type === "snapshot" && l.tick === 1));
 });
 
 test("R1: file inputs JSON hỏng → mã 2 + stderr", () => {
@@ -102,14 +103,15 @@ test("R1: --night 4 (ngoài 1..3) → mã 1", () => {
   assert.equal(r.status, 1);
 });
 
-test("v1.1: --night 2 chạy được, snapshot có night=2, thời lượng 330 s", () => {
+// Cập nhật theo TICKET-03: Đêm 2 = 270 s, Đêm 3 = 300 s.
+test("v1.2: --night 2 chạy được, snapshot có night=2, thời lượng 270 s", () => {
   const out = path.join(tmp, "n2.jsonl");
   const r = runCli(["--seed", "1", "--night", "2", "--ticks", "5", "--out", out]);
   assert.equal(r.status, 0, r.stderr);
   const lines = readLines(out);
   assert.equal(lines[0].night, 2);
-  assert.equal(lines[0].time_left_s, 330);
-  assert.equal(lines.at(-2).time_left_s, 329.917);
+  assert.equal(lines[0].time_left_s, 270);
+  assert.equal(lines.at(-2).time_left_s, 269.917);
   // night_start phát ngay sau snapshot tick 0 (A2-3)
   assert.equal(lines[1].type, "event");
   assert.deepEqual(lines[1], { type: "event", tick: 0, name: "night_start", data: { night: 2 } });
@@ -117,15 +119,15 @@ test("v1.1: --night 2 chạy được, snapshot có night=2, thời lượng 330
   assert.equal(lines[0].charms.length, 1); // C1 tại (35,0,0)
 });
 
-test("v1.1: --night 3 chạy được, snapshot có night=3 + wind, thời lượng 360 s", () => {
+test("v1.2: --night 3 chạy được, snapshot có night=3 + wind, thời lượng 300 s", () => {
   const out = path.join(tmp, "n3.jsonl");
   const r = runCli(["--seed", "1", "--night", "3", "--ticks", "5", "--out", out]);
   assert.equal(r.status, 0, r.stderr);
   const lines = readLines(out);
   const s0 = lines[0];
   assert.equal(s0.night, 3);
-  assert.equal(s0.time_left_s, 360);
-  assert.equal(lines.at(-2).time_left_s, 359.917);
+  assert.equal(s0.time_left_s, 300);
+  assert.equal(lines.at(-2).time_left_s, 299.917);
   assert.deepEqual(s0.wind, { active: false, dir_deg: 0 });
   assert.equal(s0.lanterns.length, 7); // L1..L7
   assert.equal(s0.charms.length, 2); // C1, C2

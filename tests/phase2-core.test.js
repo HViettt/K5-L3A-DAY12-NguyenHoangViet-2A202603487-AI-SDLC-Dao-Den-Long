@@ -17,36 +17,25 @@ const runSteps = (w, inputs, ticks) => {
 };
 const idle = { random_motes: false, random_shades: false, motes: [], shades: [] };
 
-// ── AC-01: Contract v1.1 ────────────────────────────────────────────────
-test("AC-01: contract_version 1.1 + đủ số chuẩn Phần 1 của Ticket-02", () => {
-  assert.equal(CONTRACT.contract_version, "1.1");
-  assert.deepEqual(T, {
-    player_speed: 6.0,
-    dash_speed: 14.0,
-    dash_duration_s: 0.2,
-    dash_cooldown_s: 1.5,
-    carry_capacity: 10,
-    lantern_cost: 10,
-    lantern_count_night1: 5,
-    pickup_radius: 1.0,
-    interact_radius: 2.0,
-    pulse_cost: 3,
-    pulse_radius: 5.0,
-    night1_duration_s: 300,
-    night2_duration_s: 330,
-    night3_duration_s: 360,
-    flames: 3,
-    invuln_s: 1.5,
-    hit_drop_ratio: 0.5,
-    pulse_stun_s: 2.0,
-    pulse_push_m: 4.0,
-    pulse_cooldown_s: 3.0,
-    safe_radius: 6.0,
-    shade_speed: 4.0,
-    shade_hit_radius: 1.0,
-    fall_enabled: true,
-    score: { per_mote: 10, per_lantern: 100, per_stun: 5, per_second_left: 2, per_flame_left: 50 },
-  });
+// ── AC-01: Contract v1.2 (cập nhật từ v1.1 theo TICKET-03) ───────────────
+test("AC-01: contract_version 1.2 + đủ số chuẩn Ticket-02 & Ticket-03", () => {
+  assert.equal(CONTRACT.contract_version, "1.2");
+  assert.equal(T.player_speed, 6.0);
+  assert.equal(T.dash_speed, 14.0);
+  assert.equal(T.night1_duration_s, 240);
+  assert.equal(T.night2_duration_s, 270);
+  assert.equal(T.night3_duration_s, 300);
+  assert.equal(T.fuel_max, 100);
+  assert.equal(T.fuel_decay_per_s, 1.0);
+  assert.equal(T.fuel_per_mote, 10);
+  assert.equal(T.relight_cost, 5);
+  assert.equal(T.win_ratio, 0.6);
+  assert.equal(T.drain_per_s, 5);
+  assert.equal(T.low_fuel_threshold, 30);
+  assert.equal(T.capacity_max, 20);
+  assert.equal(T.score.per_mote, 5);
+  assert.equal(T.score.per_lantern, 100);
+  assert.equal(T.score.per_second_left, 0);
 });
 
 // ── AC-02: Lướt (dash) ──────────────────────────────────────────────────
@@ -139,7 +128,7 @@ test("AC-04: pause → tick tăng nhưng sim_tick/thời gian đứng yên, snap
   assert.equal(s30.state, "paused");
   assert.equal(s30.tick, 31);
   assert.equal(s30.sim_tick, 10);
-  assert.equal(s30.time_left_s, 299.833); // thời gian không trôi khi paused
+  assert.equal(s30.time_left_s, 239.833); // thời gian Đêm 1 = 240 s (Ticket-03), không trôi khi paused
   const evs2 = step(w, { pause: true }); // tick 32: resumed → chạy tiếp tick này
   assert.equal(byName(evs2, "resumed").length, 1);
   assert.equal(w.simTick, 11);

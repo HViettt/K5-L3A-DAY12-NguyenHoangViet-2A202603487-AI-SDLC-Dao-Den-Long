@@ -17,7 +17,7 @@ const seq = (from, to, step) => {
 export const MAPS = {
   1: {
     name: "Đảo Bến",
-    duration_s: 300,
+    duration_s: 240,
     spawn: [0, 0, 0],
     islands: [{ cx: 0, cz: 0, r: 40 }],
     lanterns: [
@@ -42,7 +42,7 @@ export const MAPS = {
   },
   2: {
     name: "Đảo Cau",
-    duration_s: 330,
+    duration_s: 270,
     spawn: [0, 0, 0],
     islands: [
       { cx: 0, cz: 0, r: 28 },
@@ -81,7 +81,7 @@ export const MAPS = {
   },
   3: {
     name: "Đảo Chuông",
-    duration_s: 360,
+    duration_s: 300,
     spawn: [0, 0, 0],
     islands: [{ cx: 0, cz: 0, r: 45 }],
     lanterns: [

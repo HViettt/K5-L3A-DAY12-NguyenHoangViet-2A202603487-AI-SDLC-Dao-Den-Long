@@ -90,14 +90,14 @@ test("R4: đủ carry_capacity thì không nhặt", () => {
   assert.equal(w.player.carried, TUNING.carry_capacity);
 });
 
-// R5 cập nhật: lantern_cost 10 (v1.1) — nạp 10, thắp, +10·10 (nạp) + 100 (đèn).
-test("R5: interact cạnh L1 với carried 10 → deposit 10, lantern_lit, +200 điểm", () => {
+// R5 cập nhật theo TICKET-03: +5/mote nạp (10·5) + 100 thắp lần đầu = +150; lantern_lit thêm relight: false.
+test("R5: interact cạnh L1 với carried 10 → deposit 10, lantern_lit (relight:false), +150 điểm", () => {
   const { w, evs } = run(scenario("r5-deposit"), [{ interact: true }], 1);
   const dep = byName(evs, "deposit");
   assert.equal(dep.length, 1);
   assert.deepEqual(dep[0].data, { lantern_id: "L1", amount: 10, deposited: 10 });
-  assert.deepEqual(byName(evs, "lantern_lit")[0].data, { lantern_id: "L1" });
-  assert.equal(w.score, 2 * TUNING.score.per_lantern); // 10·per_mote + per_lantern
+  assert.deepEqual(byName(evs, "lantern_lit")[0].data, { lantern_id: "L1", relight: false });
+  assert.equal(w.score, 10 * TUNING.score.per_mote + TUNING.score.per_lantern); // 50 + 100 = 150
   assert.equal(w.lanterns[0].lit, true);
   assert.equal(w.player.carried, 0);
 });
@@ -169,15 +169,12 @@ test("R8: shade không bao giờ vào trong 6 m quanh đèn đã thắp (trừ �
   assert.ok(Math.abs(minD - TUNING.safe_radius) < 1e-6); // đứng sát mép 6 m
 });
 
-// R9 cập nhật: điểm thắng = 100 (nạp) + 100 (đèn) + floor(time_left)·2 + flames·50.
-test("R9: nạp đèn thứ 5 → won all_lit + thưởng thời gian + flame còn lại", () => {
+// R9 cập nhật theo TICKET-03: thắp đủ 5 đèn KHÔNG còn thắng sớm (bỏ all_lit); game tiếp tục tới bình minh.
+test("R9 (v1.2): nạp đèn thứ 5 không thắng sớm, state vẫn playing", () => {
   const { w, evs } = run(scenario("r9-win"), [{ interact: true }], 1);
-  assert.equal(w.state, "won");
-  const over = byName(evs, "game_over");
-  assert.equal(over.length, 1);
-  assert.deepEqual(over[0].data, { result: "won", reason: "all_lit" });
-  // 10·10 (nạp) + 100 (đèn) + floor((300·60−1)/60)·2 + 3·50 = 100 + 100 + 598 + 150
-  assert.equal(w.score, 948);
+  assert.equal(w.state, "playing");
+  assert.equal(byName(evs, "game_over").length, 0);
+  assert.equal(w.score, 150); // 10·5 + 100
 });
 
 test("R9: flames về 0 → lost no_flames (ưu tiên thua cao nhất)", () => {
