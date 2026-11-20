@@ -17,9 +17,9 @@ const runSteps = (w, inputs, ticks) => {
 };
 const idle = { random_motes: false, random_shades: false, motes: [], shades: [] };
 
-// ── AC-01: Contract v1.2 (cập nhật từ v1.1 theo TICKET-03) ───────────────
-test("AC-01: contract_version 1.2 + đủ số chuẩn Ticket-02 & Ticket-03", () => {
-  assert.equal(CONTRACT.contract_version, "1.2");
+// ── AC-01: Contract v1.3 (cập nhật từ v1.2 theo TICKET-04) ───────────────
+test("AC-01: contract_version 1.3 + đủ số chuẩn Ticket-02..04", () => {
+  assert.equal(CONTRACT.contract_version, "1.3");
   assert.equal(T.player_speed, 6.0);
   assert.equal(T.dash_speed, 14.0);
   assert.equal(T.night1_duration_s, 240);

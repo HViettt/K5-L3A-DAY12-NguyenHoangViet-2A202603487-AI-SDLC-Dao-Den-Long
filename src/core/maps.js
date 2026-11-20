@@ -82,7 +82,7 @@ export const MAPS = {
   3: {
     name: "Đảo Chuông",
     duration_s: 300,
-    spawn: [0, 0, 0],
+    spawn: [0, 0, -20], // tầng 0 thoáng (tâm (0,0,0) nằm dưới khối trụ tầng 2 Y=6)
     islands: [{ cx: 0, cz: 0, r: 45 }],
     lanterns: [
       { id: "L1", x: 0, y: 6, z: 6 },
