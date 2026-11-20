@@ -18,18 +18,18 @@ npm start            # mở http://localhost:8080
 - `E`: nạp đom đóm vào Đèn Lồng gần nhất · `F`: Tỏa Sáng (tốn 3 đom đóm)
 - `Esc` / `P`: tạm dừng (Tiếp tục / Chơi lại Đêm / Cài đặt / Về menu)
 
-## Cách tính điểm (chuẩn Contract v1.1)
-- `+10` mỗi đom đóm **nạp** vào đèn
-- `+100` mỗi Đèn Lồng được thắp sáng
-- `+5` mỗi Bóng Mực trúng Tỏa Sáng
-- Thưởng khi thắng Đêm: `+ floor(giây còn lại) × 2 + 50 × Ngọn Lửa còn lại`
+## Cách tính điểm (chuẩn Contract v1.2 — Phase 3)
+- `+5` mỗi đom đóm nạp vào đèn (thắp mới, thắp lại hoặc châm dầu)
+- `+100` thắp đèn lần đầu · `+40` thắp lại đèn đã từng sáng (chỉ cần 5 đom đóm)
+- `+5` mỗi Bóng Mực trúng Tỏa Sáng · `+15` nếu ngay trước đó nó đang hút dầu (`drain`)
+- Thưởng bình minh (chỉ khi sống sót với `≥ ceil(60%)` đèn sáng): `+50 + floor(fuel)` mỗi đèn đang sáng + `+50` mỗi Ngọn Lửa còn lại (bỏ thưởng thời gian).
 - Tổng điểm game là tổng điểm các Đêm đã thắng.
 
-## Test & chế độ Headless (Contract v1.1)
+## Test & chế độ Headless (Contract v1.2)
 ```bash
 npm test
 node src/headless/cli.js --seed 1 --night 1 --ticks 600 --out out.jsonl
-npm run proof -- phase-2
+npm run proof -- phase-3
 ```
 Hỗ trợ `--night 1`, `2`, `3`, `--scenario <file>`, `--inputs <file>`, `--snapshot-every <n>`.
 
