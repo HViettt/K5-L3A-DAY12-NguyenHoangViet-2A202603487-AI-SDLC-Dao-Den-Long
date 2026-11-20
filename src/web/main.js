@@ -20,6 +20,7 @@ const PAL = {
   moteHalo: 0xffe58a,
   shadeBody: 0x120a1a,
   shadeRim: 0x7a3cff,
+  shadeRimCB: 0x00b3ff, // Ticket-03 mục 6: chế độ mù màu
   shadeStun: 0x3a3450,
   mayRobe: 0xe8e2d0,
   mayScarf: 0xc8102e,
@@ -31,31 +32,36 @@ const NIGHT_INTRO = {
   1: {
     title: "Đêm 1 — Đảo Bến",
     quote: "Ông Đăng: “Sương đen đã phủ kín Đảo Bến rồi, Mây ơi. Cháu hãy gom đom đóm, thắp lại 5 ngọn Đèn Lồng Lớn trước khi bình minh đến.”",
-    goal: "Thắp 5 đèn lồng (10 đom đóm / đèn) · Thời gian: 05:00",
+    goal: "Giữ ít nhất 3/5 đèn sáng tới bình minh (châm dầu kẻo đèn cạn) · Thời gian: 04:00",
   },
   2: {
     title: "Đêm 2 — Đảo Cau",
     quote: "Ông Đăng: “Cầu tre nối hai bờ đảo rất hẹp, lại có Gió Lạc hay rình cướp ánh sáng. Dùng bục nhảy và Bùa Gió cho khéo nhé cháu!”",
-    goal: "Thắp 6 đèn lồng trên hai đảo · Thời gian: 05:30",
+    goal: "Giữ ít nhất 4/6 đèn sáng tới bình minh trên hai đảo · Thời gian: 04:30",
   },
   3: {
     title: "Đêm 3 — Đảo Chuông",
     quote: "Ông Đăng: “Đỉnh tháp chuông là ngọn đèn cuối cùng. Gió lớn trên đảo rất mạnh, nhưng ánh sáng của cháu sẽ dẫn lối cho cả biển mây.”",
-    goal: "Thắp 7 đèn lồng qua 3 tầng đảo · Thời gian: 06:00",
+    goal: "Giữ ít nhất 5/7 đèn sáng tới bình minh qua 3 tầng đảo · Thời gian: 05:00",
   },
 };
 
 const SETTINGS_KEY = "dao_den_long_settings_v1";
 const settings = (() => {
   try {
-    return { volume: 0.6, sensitivity: 1.0, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+    return { volume: 0.6, sensitivity: 1.0, cbMode: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
   } catch {
-    return { volume: 0.6, sensitivity: 1.0 };
+    return { volume: 0.6, sensitivity: 1.0, cbMode: false };
   }
 })();
 function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
 }
+// Ticket-03 mục 6: gắn/bỏ lớp CSS "cb" để đổi màu cảnh báo UI (#FF5A5F → #FFFFFF).
+function applyColorblind() {
+  document.body.classList.toggle("cb", !!settings.cbMode);
+}
+applyColorblind();
 
 const sfx = new SoundEngine(settings.volume);
 
@@ -210,10 +216,20 @@ function buildMapScene(night) {
     bulb.position.y = 3.4;
     const light = new THREE.PointLight(PAL.lanternLit, 0, 18);
     light.position.y = 3.4;
-    g.add(pole, bulb, light);
+    // Ticket-03 mục 1: thanh dầu trên đầu cột, co giãn theo fuel/100 (neo mép trái)
+    const fuelGeo = new THREE.BoxGeometry(1.2, 0.14, 0.18);
+    fuelGeo.translate(0.6, 0, 0);
+    const fuelBar = new THREE.Mesh(fuelGeo, new THREE.MeshBasicMaterial({ color: PAL.lanternLit }));
+    fuelBar.position.y = 4.25;
+    fuelBar.visible = false;
+    // Ticket-03 mục 6: viền/vết rách quanh bầu đèn tắt (chế độ mù màu)
+    const tear = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.055, 6, 20), new THREE.MeshBasicMaterial({ color: 0xf5f1e6 }));
+    tear.position.y = 3.4;
+    tear.visible = false;
+    g.add(pole, bulb, light, fuelBar, tear);
     g.position.set(l.x, l.y, l.z);
     mapGroup.add(g);
-    lanternMeshes.set(l.id, { group: g, bulbMat, light });
+    lanternMeshes.set(l.id, { group: g, bulbMat, light, fuelBar, tear });
   }
 }
 
@@ -223,21 +239,33 @@ const moteMatDrop = new THREE.MeshBasicMaterial({ color: PAL.moteHalo });
 
 function syncEntities(snap, tSec) {
   let litCount = 0;
+  const shadeRim = settings.cbMode ? PAL.shadeRimCB : PAL.shadeRim;
   for (const l of snap.lanterns) {
     if (l.lit) litCount++;
     const m = lanternMeshes.get(l.id);
     if (!m) continue;
+    const fuel = typeof l.fuel === "number" ? l.fuel : 0;
+    // Ticket-03 mục 1: fuel < 30 → đèn và thanh dầu nhấp nháy chậm 1 Hz (0.5 s bật / 0.5 s tắt)
+    const lowFuel = l.lit && fuel < T.low_fuel_threshold;
+    const blinkOff = lowFuel && Math.floor(tSec * 2) % 2 === 1;
     if (l.lit) {
       m.bulbMat.color.setHex(PAL.lanternCore);
       m.bulbMat.emissive.setHex(PAL.lanternLit);
-      m.bulbMat.emissiveIntensity = 1.2;
-      m.light.intensity = 2.6;
+      m.bulbMat.emissiveIntensity = blinkOff ? 0.3 : 1.2;
+      m.light.intensity = blinkOff ? 0.6 : 2.6;
+      m.fuelBar.visible = !blinkOff;
+      m.fuelBar.scale.x = Math.max(0, Math.min(1, fuel / T.fuel_max));
     } else {
       m.bulbMat.color.setHex(PAL.lanternOff);
       m.bulbMat.emissive.setHex(l.deposited > 0 ? PAL.lanternLit : 0x000000);
       m.bulbMat.emissiveIntensity = (l.deposited / T.lantern_cost) * 0.5;
       m.light.intensity = 0;
+      m.fuelBar.visible = false;
     }
+    // Ticket-03 mục 6: đèn tắt xẹp 20% + viền/vết rách để phân biệt không cần màu
+    const squash = settings.cbMode && !l.lit;
+    m.group.scale.y = squash ? 0.8 : 1;
+    m.tear.visible = squash;
   }
   ambient.intensity = 0.15 + 0.55 * (litCount / Math.max(1, snap.lanterns.length));
 
@@ -274,8 +302,8 @@ function syncEntities(snap, tSec) {
       obj.mat.emissiveIntensity = 0.35;
     } else {
       obj.mat.color.setHex(PAL.shadeBody);
-      obj.mat.emissive.setHex(PAL.shadeRim);
-      obj.mat.emissiveIntensity = s.state === "chase" ? 1.0 : 0.45;
+      obj.mat.emissive.setHex(shadeRim); // mù màu: #7A3CFF → #00B3FF
+      obj.mat.emissiveIntensity = s.state === "chase" || s.state === "drain" ? 1.0 : 0.45;
     }
   }
   for (const [id, obj] of shadeMeshes) {
@@ -323,7 +351,8 @@ function syncEntities(snap, tSec) {
 
 const $ = (id) => document.getElementById(id);
 const moteBarEl = $("mote-bar");
-for (let i = 0; i < T.carry_capacity; i++) {
+// Ticket-03 mục 4: sức chứa tăng tới capacity_max (20) — dựng đủ 20 ô, ẩn ô vượt capacity
+for (let i = 0; i < T.capacity_max; i++) {
   const d = document.createElement("div");
   d.className = "mote-slot";
   moteBarEl.appendChild(d);
@@ -393,6 +422,7 @@ function openSettings(from) {
   $("val-vol").textContent = `${Math.round(settings.volume * 100)}%`;
   $("opt-sens").value = settings.sensitivity;
   $("val-sens").textContent = `${settings.sensitivity.toFixed(1)}x`;
+  $("opt-cb").checked = !!settings.cbMode;
   showOnly("screen-settings");
 }
 $("btn-menu-settings").onclick = () => openSettings("menu");
@@ -405,6 +435,11 @@ $("opt-vol").oninput = (e) => {
 $("opt-sens").oninput = (e) => {
   settings.sensitivity = Number(e.target.value);
   $("val-sens").textContent = `${settings.sensitivity.toFixed(1)}x`;
+};
+// Ticket-03 mục 6: "Bảng màu dễ phân biệt" — lưu localStorage, áp dụng ngay khi bật/tắt
+$("opt-cb").onchange = (e) => {
+  settings.cbMode = !!e.target.checked;
+  applyColorblind();
 };
 $("btn-settings-close").onclick = () => {
   saveSettings();
@@ -458,7 +493,7 @@ function updateHud(snap) {
   const mm = String(Math.floor(sec / 60)).padStart(2, "0");
   const ss = String(sec % 60).padStart(2, "0");
   const timerEl = $("timer");
-  timerEl.textContent = `${mm}:${ss}`;
+  timerEl.textContent = (settings.cbMode ? "⚠ " : "") + `${mm}:${ss}`; // mù màu: thêm biểu tượng ⚠
   timerEl.classList.toggle("urgent", sec <= 30);
   if (sec <= 10 && sec > 0 && sec < lastCountdownSec) {
     lastCountdownSec = sec;
@@ -467,10 +502,6 @@ function updateHud(snap) {
   const lit = snap.lanterns.filter((l) => l.lit).length;
   $("lanterns-hud").textContent = `🏮 ${lit} / ${snap.lanterns.length}`;
   $("score-hud").textContent = `Điểm: ${snap.score}`;
-
-  for (let i = 0; i < moteSlots.length; i++) {
-    moteSlots[i].classList.toggle("filled", i < snap.player.carried);
-  }
 
   const dashBox = $("skill-dash");
   const dashReady = snap.player.dash_cd_s <= 0 || snap.player.charm_s > 0;
@@ -490,20 +521,38 @@ function updateHud(snap) {
   const windWarn = snap.night === 3 && !snap.wind.active && (world.simTick % LAWS.windCycleTicks) >= (LAWS.windCycleTicks - LAWS.windWarnTicks);
   const bWind = $("badge-wind");
   bWind.style.display = (snap.wind.active || windWarn) ? "inline-block" : "none";
-  bWind.textContent = snap.wind.active ? `Gió mạnh (${Math.round(snap.wind.dir_deg)}°)` : "Sắp có gió mạnh…";
+  bWind.textContent =
+    (settings.cbMode ? "⚠ " : "") +
+    (snap.wind.active ? `Gió mạnh (${Math.round(snap.wind.dir_deg)}°)` : "Sắp có gió mạnh…");
   leafPoints.visible = snap.wind.active || windWarn;
 
+  // Ticket-03 mục 4: HUD "đang mang / capacity" (sức chứa tăng dần tới 20)
+  const cap = snap.player.capacity ?? T.carry_capacity;
+  for (let i = 0; i < moteSlots.length; i++) {
+    moteSlots[i].style.display = i < cap ? "" : "none";
+    moteSlots[i].classList.toggle("filled", i < snap.player.carried);
+  }
+  $("carry-label").textContent = `Đang mang: ${snap.player.carried} / ${cap}`;
+
+  // Nhắc E đúng trạng thái đèn: nạp mới / thắp lại (ever_lit) / châm dầu (đang sáng)
   let nearest = null, bestD = Infinity;
   const px = snap.player.pos[0], pz = snap.player.pos[2];
   for (const l of snap.lanterns) {
-    if (l.lit) continue;
+    const receivable = !l.lit || l.fuel < T.fuel_max; // đèn nhận được: chưa sáng, hoặc sáng nhưng chưa đầy dầu
+    if (!receivable) continue;
     const d = Math.hypot(l.pos[0] - px, l.pos[2] - pz);
     if (d < bestD) { bestD = d; nearest = l; }
   }
   const promptE = $("prompt-e");
   if (nearest && bestD <= T.interact_radius) {
     promptE.style.display = "block";
-    promptE.textContent = `E — Nạp ánh sáng (${nearest.deposited}/${T.lantern_cost})`;
+    if (nearest.lit) {
+      promptE.textContent = `E — Châm dầu (${Math.round(nearest.fuel)}%)`;
+    } else if (nearest.ever_lit) {
+      promptE.textContent = `E — Thắp lại (${nearest.deposited}/${T.relight_cost})`;
+    } else {
+      promptE.textContent = `E — Nạp ánh sáng (${nearest.deposited}/${T.lantern_cost})`;
+    }
   } else {
     promptE.style.display = "none";
   }
@@ -576,8 +625,10 @@ renderer.setAnimationLoop((now) => {
     if (mode === "playing" && keys.has("KeyQ")) camYawDeg = (camYawDeg - 110 * dt) % 360;
     acc += dt;
     while (acc >= DT) {
-      const mx = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
-      const mz = (keys.has("KeyS") ? 1 : 0) - (keys.has("KeyW") ? 1 : 0);
+      // Camera đứng sau Mây phía -Z, quay về +Z (yaw 0): W = tiến về +Z, A = trái (+X).
+      // Core xoay input theo cam_yaw_deg: vx = mx·cos + mz·sin; vz = -mx·sin + mz·cos.
+      const mx = (keys.has("KeyA") ? 1 : 0) - (keys.has("KeyD") ? 1 : 0);
+      const mz = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
       if (edgePress.jump && world.player.grounded && mode === "playing") sfx.jump();
       const input = {
         move: mode === "playing" ? [mx, mz] : [0, 0],

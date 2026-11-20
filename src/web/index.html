@@ -9,6 +9,9 @@
       --bg: #0E1430; --fog: #1B2350; --gold: #F2C14E; --lit: #FFB347;
       --danger: #FF5A5F; --text: #F5F1E6; --red: #C8102E;
     }
+    /* Ticket-03 mục 6: chế độ mù màu — cảnh báo UI #FF5A5F → #FFFFFF (kèm biểu tượng ⚠ do JS thêm) */
+    body.cb { --danger: #FFFFFF; }
+    body.cb .badge { border-style: dashed; }
     * { box-sizing: border-box; user-select: none; }
     html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, sans-serif; }
     canvas { display: block; width: 100%; height: 100%; }
@@ -36,6 +39,7 @@
 
     #hud-bc { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
     #prompt-e { background: rgba(14,20,48,0.85); border: 1px solid var(--lit); color: var(--lit); padding: 6px 14px; border-radius: 8px; font-weight: 600; display: none; }
+    #carry-label { font-size: 12px; color: var(--gold); font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
     #mote-bar { display: flex; gap: 5px; padding: 7px 10px; }
     .mote-slot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(255,229,138,0.5); background: rgba(255,246,194,0.08); transition: 0.12s; }
     .mote-slot.filled { background: radial-gradient(circle, #FFF6C2 30%, #FFE58A 100%); box-shadow: 0 0 8px #FFE58A; border-color: #FFF6C2; }
@@ -92,7 +96,7 @@
     </div>
     <div id="hud-tc" class="panel">
       <div id="night-label">Đêm 1 — Đảo Bến</div>
-      <div id="timer">05:00</div>
+      <div id="timer">04:00</div>
     </div>
     <div id="hud-tr" class="panel">
       <div id="lanterns-hud">🏮 0 / 5</div>
@@ -101,6 +105,7 @@
     </div>
     <div id="hud-bc">
       <div id="prompt-e">E — Nạp ánh sáng (0/10)</div>
+      <div id="carry-label">Đang mang: 0 / 10</div>
       <div id="mote-bar" class="panel"></div>
     </div>
     <div id="hud-br">
@@ -164,6 +169,10 @@
       <div class="setting-row">
         <label for="opt-sens">Độ nhạy chuột: <b id="val-sens">1.0x</b></label>
         <input id="opt-sens" type="range" min="0.2" max="3" step="0.1" value="1.0" />
+      </div>
+      <div class="setting-row">
+        <label for="opt-cb">Bảng màu dễ phân biệt (mù màu)</label>
+        <input id="opt-cb" type="checkbox" style="width:20px;height:20px;accent-color:var(--gold)" />
       </div>
       <div class="btns"><button id="btn-settings-close">Lưu & Đóng</button></div>
     </div>
