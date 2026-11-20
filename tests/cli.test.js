@@ -97,9 +97,40 @@ test("R1: thiếu --ticks và --seed → mã 1", () => {
   assert.ok(r.stderr.includes("--seed"));
 });
 
-test("R1: --night 2 (chưa hỗ trợ) → mã 1", () => {
-  const r = runCli(["--seed", "1", "--night", "2", "--ticks", "5", "--out", path.join(tmp, "x.jsonl")]);
+test("R1: --night 4 (ngoài 1..3) → mã 1", () => {
+  const r = runCli(["--seed", "1", "--night", "4", "--ticks", "5", "--out", path.join(tmp, "x.jsonl")]);
   assert.equal(r.status, 1);
+});
+
+test("v1.1: --night 2 chạy được, snapshot có night=2, thời lượng 330 s", () => {
+  const out = path.join(tmp, "n2.jsonl");
+  const r = runCli(["--seed", "1", "--night", "2", "--ticks", "5", "--out", out]);
+  assert.equal(r.status, 0, r.stderr);
+  const lines = readLines(out);
+  assert.equal(lines[0].night, 2);
+  assert.equal(lines[0].time_left_s, 330);
+  assert.equal(lines.at(-2).time_left_s, 329.917);
+  // night_start phát ngay sau snapshot tick 0 (A2-3)
+  assert.equal(lines[1].type, "event");
+  assert.deepEqual(lines[1], { type: "event", tick: 0, name: "night_start", data: { night: 2 } });
+  assert.equal(lines[0].lanterns.length, 6); // L1..L6
+  assert.equal(lines[0].charms.length, 1); // C1 tại (35,0,0)
+});
+
+test("v1.1: --night 3 chạy được, snapshot có night=3 + wind, thời lượng 360 s", () => {
+  const out = path.join(tmp, "n3.jsonl");
+  const r = runCli(["--seed", "1", "--night", "3", "--ticks", "5", "--out", out]);
+  assert.equal(r.status, 0, r.stderr);
+  const lines = readLines(out);
+  const s0 = lines[0];
+  assert.equal(s0.night, 3);
+  assert.equal(s0.time_left_s, 360);
+  assert.equal(lines.at(-2).time_left_s, 359.917);
+  assert.deepEqual(s0.wind, { active: false, dir_deg: 0 });
+  assert.equal(s0.lanterns.length, 7); // L1..L7
+  assert.equal(s0.charms.length, 2); // C1, C2
+  assert.deepEqual(s0.player.vel, [0, 0, 0]);
+  assert.equal(s0.player.grounded, true);
 });
 
 test("R10: cùng seed + mặc định random bật → 2 lần chạy giống hệt từng byte", () => {
@@ -110,10 +141,19 @@ test("R10: cùng seed + mặc định random bật → 2 lần chạy giống h�
     assert.equal(r.status, 0, r.stderr);
   }
   assert.equal(readFileSync(a, "utf8"), readFileSync(b, "utf8"));
-  // random thật sự bật: có đom đóm và 2 Bóng Múc ban đầu
+  // random thật sự bật: 20 đom đóm ban đầu (v1.1); Bóng Mực sinh từ tick 300
   const s0 = readLines(a)[0];
-  assert.equal(s0.motes_active, 30);
-  assert.deepEqual(s0.shades.map((s) => s.id), ["S1", "S2"]);
+  assert.equal(s0.motes_active, 20);
+  assert.deepEqual(s0.shades, []);
+  const lines = readLines(a);
+  const spawned = lines.filter((l) => l.type === "event" && l.name === "shade_spawned");
+  assert.deepEqual(
+    spawned.map((e) => [e.tick, e.data.id]),
+    [[300, "S1"], [300, "S2"]]
+  );
+  // tick 240 sinh thêm 1 đom đóm ở điểm trống (20 → 21)
+  const s240 = lines.find((l) => l.type === "snapshot" && l.tick === 240);
+  assert.equal(s240.motes_active, 21);
 });
 
 function inputsFile(frames) {

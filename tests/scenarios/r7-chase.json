@@ -3,5 +3,5 @@
   "random_motes": false,
   "random_shades": false,
   "motes": [],
-  "shades": [{ "pos": [10, 0, 0] }]
+  "shades": [{ "pos": [9.9, 0, 0] }]
 }

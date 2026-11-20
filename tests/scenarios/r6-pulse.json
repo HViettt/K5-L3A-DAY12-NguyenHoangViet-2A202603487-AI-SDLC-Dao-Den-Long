@@ -1,7 +1,7 @@
 {
-  "player": { "carried": 2 },
+  "player": { "carried": 5 },
   "random_motes": false,
   "random_shades": false,
   "motes": [],
-  "shades": [{ "pos": [5, 0, 0] }]
+  "shades": [{ "pos": [4, 0, 0] }]
 }

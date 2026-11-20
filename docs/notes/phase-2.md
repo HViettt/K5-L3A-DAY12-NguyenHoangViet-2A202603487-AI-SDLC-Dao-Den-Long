@@ -112,9 +112,13 @@ Spec gốc: [docs/spec/ticket-02.md](../spec/ticket-02.md).
 
 ---
 
-## 4. Đánh giá phase (điền trước khi gắn tag `phase-2`)
-- Đạt:
-- Chưa đạt (lý do):
-- Test cũ đã sửa/bỏ (kèm lý do):
-- AI sai ở đâu / chỉnh harness:
-- Token ước tính:
+## 4. Đánh giá phase (chốt trước tag `phase-2`)
+- **Đạt:** AC-01..AC-11, AC-16 (**64/64 test pass**, gồm regression Phase 1 + 12 scenario v1.1 + tất định; benchmark Đêm 3 21.600 tick chạy hết **~170 ms ≤ 30 s**; `AGENTS.md` và skill `/verify` đã cập nhật trong lịch sử git). Code Web 3D (AC-12..AC-14: 3 Đêm, bảng màu hex chuẩn, HUD đầy đủ, Web Audio 10 SFX + nhạc nền, Menu/Pause/Settings `localStorage`) đã hoàn thiện và kết nối trực tiếp vào `src/core/`.
+- **Chưa kịp kiểm chứng thủ công ở tag `phase-2`:** AC-15 (chưa kịp mở trình duyệt đo FPS thực tế ở 1280×720 và chụp ảnh màn hình trước mốc 16:00 — sẽ kiểm tra và bổ sung bằng chứng ảnh/FPS ở Phase 3/4).
+- **Test cũ đã sửa kèm lý do:**
+  - `tests/core.test.js` (G1, R4, R5, R6, R7, R8, R9): cập nhật theo số chuẩn Phần 1 của Ticket-02 (bỏ clamp mép đảo vì `fall_enabled=true`, điểm cộng khi nạp, `lantern_cost=10`, `pulse_cost=3`, `safe_radius=6`, `invuln_s=1.5`).
+  - `tests/cli.test.js`: mở rộng `--night` nhận 1..3 (thay vì từ chối `--night 2`).
+- **AI sai ở đâu / chỉnh harness:**
+  - GLM qua z.ai mất ~20 phút đọc ngữ nghĩa cho prompt lớn; phạm 3 lỗi chính: `canStand` chặn bước ra khoảng không (làm hỏng rơi + bục nhảy), gió Đêm 3 thổi ngay từ tick 1 thay vì sau 30 s, và `config.js` dùng `node:fs` không chạy được trên trình duyệt.
+  - Cách khắc phục: chia song song Antigravity làm `src/web/` + review/fix test; cập nhật `AGENTS.md` cấm dùng `node:fs` trong `src/core/`.
+- **Token ước tính:** ~180k (GLM ~120k + Antigravity ~60k).

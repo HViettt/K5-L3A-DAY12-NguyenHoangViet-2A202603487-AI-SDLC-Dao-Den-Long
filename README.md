@@ -2,9 +2,9 @@
 
 > 🎬 Video demo: _(cập nhật ở Phase 4)_
 
-Game 3D góc nhìn thứ ba: Mây – người giữ đèn nhỏ tuổi – gom đom đóm để thắp lại các Đèn Lồng Lớn, né Bóng Mực trong sương đen.
+Game 3D góc nhìn thứ ba qua **3 Đêm** (Đảo Bến · Đảo Cau · Đảo Chuông): Mây – người giữ đèn nhỏ tuổi – gom đom đóm thắp các Đèn Lồng Lớn, né Bóng Mực và Gió Lạc, dùng Lướt, Tỏa Sáng và Bùa Gió trước bình minh.
 
-## Cài đặt & chạy (Node ≥ 20, không cần npm install)
+## Cài đặt & chạy (Node ≥ 20, tối đa 3 lệnh, không cần build)
 ```bash
 git clone https://github.com/HViettt/K5-L3A-DAY12-NguyenHoangViet-2A202603487-AI-SDLC-Dao-Den-Long.git
 cd K5-L3A-DAY12-NguyenHoangViet-2A202603487-AI-SDLC-Dao-Den-Long
@@ -12,18 +12,30 @@ npm start            # mở http://localhost:8080
 ```
 
 ## Điều khiển
-- WASD: di chuyển
+- `W A S D`: di chuyển theo hướng camera
+- `Kéo chuột` / `Q`: xoay camera (độ nhạy chỉnh trong Cài đặt)
+- `Space`: nhảy · `Shift` / `Chuột phải`: Lướt (Dash)
+- `E`: nạp đom đóm vào Đèn Lồng gần nhất · `F`: Tỏa Sáng (tốn 3 đom đóm)
+- `Esc` / `P`: tạm dừng (Tiếp tục / Chơi lại Đêm / Cài đặt / Về menu)
 
-## Test & headless
+## Cách tính điểm (chuẩn Contract v1.1)
+- `+10` mỗi đom đóm **nạp** vào đèn
+- `+100` mỗi Đèn Lồng được thắp sáng
+- `+5` mỗi Bóng Mực trúng Tỏa Sáng
+- Thưởng khi thắng Đêm: `+ floor(giây còn lại) × 2 + 50 × Ngọn Lửa còn lại`
+- Tổng điểm game là tổng điểm các Đêm đã thắng.
+
+## Test & chế độ Headless (Contract v1.1)
 ```bash
-npm test                                       # unit + scenario headless
-node src/headless/cli.js --seed=1 --ticks=60   # (sẽ cập nhật theo Test Contract)
-npm run proof -- phase-1                       # lưu bằng chứng vào docs/proof/phase-1
+npm test
+node src/headless/cli.js --seed 1 --night 1 --ticks 600 --out out.jsonl
+npm run proof -- phase-2
 ```
+Hỗ trợ `--night 1`, `2`, `3`, `--scenario <file>`, `--inputs <file>`, `--snapshot-every <n>`.
 
-## Tài liệu
-- Spec: `docs/spec/` · Giả định & đánh giá: `docs/notes/` · Bằng chứng: `docs/proof/`
-- Harness AI: `AGENTS.md`, `.githooks/pre-commit` (chặn commit khi test đỏ), `.github/workflows/ci.yml`
+## Tài liệu & Harness AI
+- Spec: `docs/spec/` · Giả định, AC & đánh giá: `docs/notes/` · Bằng chứng: `docs/proof/`
+- Harness: `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` (Stop hook), `.claude/skills/verify/SKILL.md`, `.githooks/pre-commit`, `.github/workflows/ci.yml`
 
 ## Sáng tạo của tôi
-_(cập nhật sau)_
+_(Ưu tiên hoàn thiện lõi chuẩn 3 Đêm ở Phase 2; phần sáng tạo bổ sung sẽ cập nhật sau khi ổn định.)_
